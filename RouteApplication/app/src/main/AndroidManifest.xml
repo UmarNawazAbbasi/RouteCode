@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.example.bhati.routeapplication">
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <uses-feature android:name="android.hardware.camera" />
+    <uses-permission android:name="android.permission.CAMERA"/>
+
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme"
+        tools:ignore="GoogleAppIndexingWarning">
+        <activity
+            android:name="com.example.bhati.routeapplication.Activities.SignupActivity"
+            android:label="Sign up"
+            android:theme="@style/AppTheme.NoActionBar"
+            />
+        <activity
+            android:name="com.example.bhati.routeapplication.Activities.LoginActivity"
+            android:label="Login"
+            android:theme="@style/AppTheme.NoActionBar"
+            />
+        <activity
+            android:name="com.example.bhati.routeapplication.Activities.SplashScreen"
+            android:theme="@style/AppTheme.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.example.bhati.routeapplication.Activities.FileScreenActivity"
+            android:label="File Screen"
+            android:theme="@style/AppTheme.NoActionBar"
+            />
+        <activity
+            android:name="com.example.bhati.routeapplication.Activities.Home"
+            android:label="@string/title_activity_home"
+            android:theme="@style/AppTheme.NoActionBar"
+            />
+        <activity
+            android:name="com.example.bhati.routeapplication.Activities.SavingActivity"
+            android:label="Saving Activity"
+            android:theme="@style/AppTheme.NoActionBar"
+            >
+
+        </activity>
+        <activity android:name="com.example.bhati.routeapplication.Activities.Speech"  android:theme="@style/AppTheme.NoActionBar">
+
+
+        </activity>
+        <service android:name="com.example.bhati.routeapplication.Servicess.background_location_updates"  android:theme="@style/AppTheme.NoActionBar"/>
+    </application>
+
+</manifest>

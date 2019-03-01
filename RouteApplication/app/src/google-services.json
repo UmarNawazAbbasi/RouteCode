@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "292897682187",
+    "firebase_url": "https://route-project-9fc68.firebaseio.com",
+    "project_id": "route-project-9fc68",
+    "storage_bucket": "route-project-9fc68.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:292897682187:android:2d4c3cd0782f28d8",
+        "android_client_info": {
+          "package_name": "com.example.bhati.routeapplication"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "292897682187-sscvtgp1r97eetej961tg45ss4cvoqkk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgOrsr_UO88gPvl4BTpgpEsSqyBbnVGEw"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
