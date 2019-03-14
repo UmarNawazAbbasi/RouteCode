@@ -12,17 +12,18 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="vertical"
-        >
+        android:orientation="vertical">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_weight="1"
-            android:orientation="vertical"
-            >
+            android:orientation="vertical">
+
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
+
                 <com.mapbox.mapboxsdk.maps.MapView
                     android:id="@+id/mapView"
                     android:layout_width="match_parent"
@@ -30,66 +31,73 @@
                     mapbox:mapbox_cameraTargetLat="40.73581"
                     mapbox:mapbox_cameraTargetLng="-73.99155"
                     mapbox:mapbox_cameraZoom="11"
-                    mapbox:mapbox_styleUrl="mapbox://styles/mapbox/streets-v10"/>
+                    mapbox:mapbox_styleUrl="mapbox://styles/mapbox/streets-v10" />
+
                 <android.support.v7.widget.AppCompatImageView
-                    android:visibility="gone"
                     android:id="@+id/logout"
                     android:layout_width="wrap_content"
-                    android:layout_margin="@dimen/activity_horizontal_margin"
                     android:layout_height="wrap_content"
-                    app:srcCompat="@drawable/menu"
                     android:layout_gravity="right"
-                    />
+                    android:layout_margin="@dimen/activity_horizontal_margin"
+                    android:visibility="gone"
+                    app:srcCompat="@drawable/menu" />
             </FrameLayout>
 
         </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_weight="1"
-            android:orientation="vertical"
-            >
+            android:orientation="vertical">
+
             <FrameLayout
                 android:layout_width="match_parent"
-                android:background="@color/black"
-                android:layout_height="match_parent">
+                android:layout_height="match_parent"
+                android:background="@color/black">
 
                 <!--<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"-->
-                    <!--android:layout_width="match_parent"-->
-                    <!--android:layout_height="match_parent"-->
-                    <!--android:id="@+id/relative_parent"-->
-                    <!--android:background="#000000">-->
-                    <!--<VideoView-->
-                        <!--android:layout_alignParentLeft="true"-->
-                        <!--android:layout_alignParentRight="true"-->
-                        <!--android:layout_width="match_parent"-->
-                        <!--android:layout_height="wrap_content"-->
-                        <!--android:layout_centerInParent="true"-->
-                        <!--android:focusable="false"-->
-                        <!--android:focusableInTouchMode="false"-->
-                        <!--android:id="@+id/videoView" />-->
+                <!--android:layout_width="match_parent"-->
+                <!--android:layout_height="match_parent"-->
+                <!--android:id="@+id/relative_parent"-->
+                <!--android:background="#000000">-->
+                <!--<VideoView-->
+                <!--android:layout_alignParentLeft="true"-->
+                <!--android:layout_alignParentRight="true"-->
+                <!--android:layout_width="match_parent"-->
+                <!--android:layout_height="wrap_content"-->
+                <!--android:layout_centerInParent="true"-->
+                <!--android:focusable="false"-->
+                <!--android:focusableInTouchMode="false"-->
+                <!--android:id="@+id/videoView" />-->
                 <!--</RelativeLayout>-->
                 <VideoView
 
+                    android:id="@+id/videoView"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:focusable="false"
                     android:layout_gravity="center"
-                    android:focusableInTouchMode="false"
-                    android:id="@+id/videoView" />
+                    android:focusable="false"
+                    android:focusableInTouchMode="false" />
 
                 <ToggleButton
-                    android:padding="@dimen/margin_36"
-                    android:layout_gravity="center"
                     android:id="@+id/btnPlay"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:background="@drawable/toggle_selector"
+                    android:padding="@dimen/margin_36"
                     android:textOff=" "
                     android:textOn=" "
-                    android:background="@drawable/toggle_selector"
                     app:layout_constraintBottom_toTopOf="@+id/btnCancel"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent" />
+                <SeekBar
+                    android:layout_gravity="bottom"
+                    android:layout_marginBottom="10dp"
+                    android:id="@+id/seekbar_video"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content" />
             </FrameLayout>
 
         </LinearLayout>
@@ -98,21 +106,20 @@
 
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1.62"
-            android:gravity="center"
             android:layout_gravity="center"
-            >
+            android:layout_weight="1.62"
+            android:gravity="center">
+
             <Button
                 android:id="@+id/btnUpload"
-                android:background="@drawable/button_bg_green"
                 android:layout_width="220dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:gravity="center"
-                android:textColor="@color/white"
-                android:text="Upload"
                 android:layout_marginRight="@dimen/activity_horizontal_margin"
-                />
+                android:background="@drawable/button_bg_green"
+                android:gravity="center"
+                android:text="Upload"
+                android:textColor="@color/white" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

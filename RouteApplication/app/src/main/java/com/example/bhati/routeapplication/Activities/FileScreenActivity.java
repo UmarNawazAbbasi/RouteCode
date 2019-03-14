@@ -51,13 +51,13 @@ public class FileScreenActivity extends AppCompatActivity {
             a  = a.replace(" MB","");
             sizeList.add(a);
         }
-
+////
         for (int i = 0 ; i< sizeList.size() ; i++)
         {
            total_size = total_size + Double.parseDouble(sizeList.get(i));
         }
         String size_in_mbs = String.format("%.2f", total_size);
-        txtViewTotalFiles.setText(albumList.size()+" Files");
+       txtViewTotalFiles.setText(albumList.size()+" Files");
         txtViewTotalSize.setText("Size "+size_in_mbs+" (MBs)");
 
         if (albumList.size() <= 0)

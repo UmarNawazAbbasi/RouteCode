@@ -6,12 +6,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.location.LocationManager;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.view.WindowManager;
 import android.widget.Toast;
 
@@ -55,7 +55,7 @@ public class SplashScreen extends AppCompatActivity {
             MyAlertMessageNoGps();
         }
 
-
+//        CreatExcelSheet();
     }
 
     private void requestMultiPermission() {
@@ -185,4 +185,5 @@ public class SplashScreen extends AppCompatActivity {
             }
         }
     }
+
 }

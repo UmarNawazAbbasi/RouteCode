@@ -51,20 +51,21 @@ dependencies {
     implementation 'com.mapbox.mapboxsdk:mapbox-android-plugin-locationlayer:0.10.0'
     implementation 'com.mapbox.mapboxsdk:mapbox-android-plugin-localization:0.5.0'
     implementation 'com.mapbox.mapboxsdk:mapbox-android-core:0.2.1'
+    implementation 'com.github.bumptech.glide:glide:3.7.0'
     //firebase
     implementation 'com.google.firebase:firebase-core:16.0.4'
     implementation 'com.google.firebase:firebase-auth:16.0.4'
     implementation 'com.google.firebase:firebase-database:16.0.4'
-
-
     implementation 'com.writingminds:FFmpegAndroid:0.3.2'
-//    implementation 'org.jcodec:jcodec-android:0.1.9'
-    implementation 'com.karumi:dexter:4.2.0' // this is use for runtime permissions
+    //    implementation 'org.jcodec:jcodec-android:0.1.9'
+    implementation 'com.karumi:dexter:4.2.0'
+    // this is use for runtime permissions
     implementation 'com.google.cloud:google-cloud-speech:0.41.0-alpha'
     annotationProcessor 'com.google.cloud:google-cloud-speech:0.41.0-alpha'
     implementation 'com.android.support:multidex:1.0.3'
     implementation 'io.grpc:grpc-okhttp:1.11.0'
     //this is GCS
     //implementation 'com.google.cloud:google-cloud-storage:1.48.0'
+    implementation files('libs/jxl-2.6.12.jar')
 }
 apply plugin: 'com.google.gms.google-services'

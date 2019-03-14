@@ -62,7 +62,12 @@
 
 
         </activity>
-        <service android:name="com.example.bhati.routeapplication.Servicess.background_location_updates"  android:theme="@style/AppTheme.NoActionBar"/>
+        <service
+            android:name="com.example.bhati.routeapplication.Servicess.background_location_updates"
+            android:theme="@style/AppTheme.NoActionBar"
+            android:exported="false"
+            android:stopWithTask="true"
+            />
     </application>
 
 </manifest>

@@ -19,6 +19,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.bumptech.glide.Glide;
 import com.example.bhati.routeapplication.Activities.SavingActivity;
 import com.example.bhati.routeapplication.R;
 import com.example.bhati.routeapplication.Rest.Album;
@@ -53,6 +54,7 @@ public class AlbumAdapter extends RecyclerView.Adapter<AlbumAdapter.MyViewHolder
         Album album = albumList.get(i);
 
         //holder.videoView.setImageBitmap(retriveVideoFrameFromVideo(album.getVideo_url()));
+        Log.d("VIDEO_URL","IS : "+album.getVideo_url());
         holder.txtDuration.setText(""+getVideoTime(album.getVideo_url()));
         holder.txtTime.setText(album.getTime());
         holder.txtDate.setText(album.getDate());
@@ -73,6 +75,18 @@ public class AlbumAdapter extends RecyclerView.Adapter<AlbumAdapter.MyViewHolder
             mContext.startActivity(intent);
             //finish();
         });
+        try
+        {
+            Glide.with(mContext)
+                    .load(Uri.parse(album.getVideo_url()))
+                    .into(holder.videoView);
+
+
+        }
+        catch (Exception ex)
+        {
+            Log.d("GLIDE_EXCEPTION","EXception"+ex.getMessage());
+        }
     }
 
     @Override
@@ -138,4 +152,5 @@ public class AlbumAdapter extends RecyclerView.Adapter<AlbumAdapter.MyViewHolder
 //        Bitmap bitmap = ThumbnailUtils.createVideoThumbnail(picturePath, MediaStore.Video.Thumbnails.MICRO_KIND);
         return bMap;
     }
+
 }

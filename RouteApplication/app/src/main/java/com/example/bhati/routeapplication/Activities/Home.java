@@ -9,10 +9,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -21,9 +23,9 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
-import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -31,6 +33,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
 import android.widget.VideoView;
+
 import com.example.bhati.routeapplication.Database.DBHelper;
 import com.example.bhati.routeapplication.Interface.Callback;
 import com.example.bhati.routeapplication.Model.GPSTracker;
@@ -74,7 +77,10 @@ import com.mapbox.mapboxsdk.offline.OfflineManager;
 import com.mapbox.mapboxsdk.offline.OfflineTilePyramidRegionDefinition;
 import com.mapbox.mapboxsdk.plugins.locationlayer.LocationLayerOptions;
 import com.mapbox.mapboxsdk.plugins.locationlayer.LocationLayerPlugin;
+
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -87,9 +93,21 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
+
+import jxl.Cell;
+import jxl.Sheet;
+import jxl.Workbook;
+import jxl.WorkbookSettings;
+import jxl.read.biff.BiffException;
+import jxl.write.Label;
+import jxl.write.WritableSheet;
+import jxl.write.WritableWorkbook;
+import jxl.write.WriteException;
+import jxl.write.biff.RowsExceededException;
 
 public class Home extends AppCompatActivity
-      implements OnMapReadyCallback , LocationEngineListener, PermissionsListener , Callback {
+        implements OnMapReadyCallback, LocationEngineListener, PermissionsListener, Callback {
     private MapView mapView;
     public static MapboxMap map;
     public static LocationEngine locationEngine;
@@ -104,7 +122,7 @@ public class Home extends AppCompatActivity
     private Location originLocation;
     private Marker currentLocationMarker;
     private Marker marker;
-    private  boolean isVideoCapturing;
+    private boolean isVideoCapturing;
     private OfflineManager offlineManager;
     private ArrayList<LatLng> list;
     private boolean isCurrentlocation;
@@ -116,11 +134,13 @@ public class Home extends AppCompatActivity
     MyReceiver myReceiver;
     FFmpeg fFmpeg;
     private DBHelper myDb;
+    File file;
     private final int REQ_CODE_SPEECH_INPUT = 100;
     private boolean receiversRegistered;
-   // private float size;
+    // private float size;
     private SharedPreferences preferences;
     private SharedPreferences.Editor editor;
+
     //String compressFilePath;
     @SuppressLint("MissingPermission")
     @Override
@@ -132,7 +152,8 @@ public class Home extends AppCompatActivity
 
         setContentView(R.layout.activity_home);
         initialize();
-        preferences = getSharedPreferences("isVideoCapturing" , MODE_PRIVATE);
+
+        preferences = getSharedPreferences("isVideoCapturing", MODE_PRIVATE);
         Mapbox.getInstance(this, getString(R.string.access_token));
         mapView = findViewById(R.id.mapView);
         btnFiles = findViewById(R.id.btnFiles);
@@ -140,17 +161,19 @@ public class Home extends AppCompatActivity
         mapView.getMapAsync(this);
         btnCamera = findViewById(R.id.btnCamera);
         myDb = new DBHelper(this);
-
+        if (myDb.getAllData().size() < 1) {
+            CreatExcelSheet();
+        }
         btnCamera.setOnClickListener(v -> {
 
-            new AlertDialog.Builder(this ,  R.style.MyDialogTheme)
+            new AlertDialog.Builder(this, R.style.MyDialogTheme)
                     .setTitle("Alert")
                     .setMessage("User can select the video Resolution from there Phone Settings before start capturing video")
                     .setPositiveButton("OK", (dialog, which) -> {
                         dialog.dismiss();
                         isVideoCapturing = true;
                         editor = preferences.edit();
-                        editor.putBoolean("is_video_capturing" , true);
+                        editor.putBoolean("is_video_capturing", true);
                         editor.apply();
 
                         Intent captureVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
@@ -163,7 +186,7 @@ public class Home extends AppCompatActivity
             // speech();
         });
         btnFiles.setOnClickListener(v -> {
-            startActivity(new Intent(Home.this , FileScreenActivity.class));
+            startActivity(new Intent(Home.this, FileScreenActivity.class));
             finish();
         });
         list = new ArrayList<>();
@@ -178,22 +201,28 @@ public class Home extends AppCompatActivity
             }
         }, 0, 5000);//1 Minutes
     }
+
     Intent ServiceIntent;
-    private void Start_Service()
-    {
-        ServiceIntent = new Intent(Home.this , background_location_updates.class);
-        ServiceIntent.putExtra("is_video_capturing" , isVideoCapturing);
+
+    private void Start_Service() {
+        ServiceIntent = new Intent(Home.this, background_location_updates.class);
+        ServiceIntent.putExtra("is_video_capturing", isVideoCapturing);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(ServiceIntent);
-        }
-        else
-        {
+            try
+            {
+                startForegroundService(ServiceIntent);
+            }
+            catch (Exception ex)
+            {
+
+            }
+        } else {
             startService(ServiceIntent);
         }
         register_Reciever();
     }
-    public  void initialize()
-    {
+
+    public void initialize() {
         fFmpeg = FFmpeg.getInstance(this);
         try {
             fFmpeg.loadBinary(new FFmpegLoadBinaryResponseHandler() {
@@ -221,33 +250,61 @@ public class Home extends AppCompatActivity
             e.printStackTrace();
         }
     }
+
     float size;
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == VIDEO_CAPTURED)
-        {
-            if (resultCode == RESULT_OK)
-            {
+        if (requestCode == VIDEO_CAPTURED) {
+            if (resultCode == RESULT_OK) {
 
                 Uri uri = data.getParcelableExtra("file");
-                videoFileUri = data.getData();
-                File file = new File(String.valueOf(videoFileUri));
-                final String path = getPathFromURI(videoFileUri);
-                if (path != null) {
-                    File f = new File(path);
-                    size = f.length();
-                    size = size/1024;
-                    uri = Uri.fromFile(f);
+                try {
+                    AssetFileDescriptor videoAsset = getContentResolver().openAssetFileDescriptor(data.getData(), "r");
+                    FileInputStream fis = videoAsset.createInputStream();
+                    File root = new File(Environment.getExternalStorageDirectory(), "/RouteApp");  //you can replace RecordVideo by the specific folder where you want to save the video
+                    if (!root.exists()) {
+                        System.out.println("No directory");
+                        root.mkdirs();
+                    }
+
+
+                    file = new File(root, "android_" + System.currentTimeMillis() + ".mp4");
+                    FileOutputStream fos = new FileOutputStream(file);
+                    byte[] buf = new byte[1024];
+                    int len;
+                    while ((len = fis.read(buf)) > 0) {
+                        fos.write(buf, 0, len);
+                    }
+                    fis.close();
+                    fos.close();
+                    size = file.length();
+                    size = size / 1024;
+                    uri = Uri.fromFile(file);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
+
+
+//                videoFileUri = data.getData();
+//                File file = new File(String.valueOf(videoFileUri));
+//
+//                final String path = getPathFromURI(videoFileUri);
+
+//                if (path != null) {
+////                    File f = new File(path);
+////                    size = f.length();
+////                    size = size/1024;
+////                    uri = Uri.fromFile(f);
+//                }
                 Dialog dialog = new Dialog(Home.this);
                 dialog.setContentView(R.layout.dialog);
                 Button btnPlay = dialog.findViewById(R.id.btnPlay);
                 ImageView btnCancel = dialog.findViewById(R.id.btnCancelImage);
                 Button btnRetry = dialog.findViewById(R.id.btnRetry);
                 Button btnSave = dialog.findViewById(R.id.btnSave);
-                VideoView videoView  = dialog.findViewById(R.id.videoView);
-
+                VideoView videoView = dialog.findViewById(R.id.videoView);
                 Uri finalUri = uri;
                 btnPlay.setOnClickListener(v -> {
                     videoView.setVideoURI(finalUri);
@@ -257,7 +314,7 @@ public class Home extends AppCompatActivity
 
                 btnSave.setOnClickListener(v -> {
                     dialog.dismiss();
-                    Dialog dialogUsername = new Dialog(Home.this , R.style.MyDialogTheme);
+                    Dialog dialogUsername = new Dialog(Home.this, R.style.MyDialogTheme);
                     dialogUsername.setContentView(R.layout.username);
                     dialogUsername.setCancelable(false);
                     EditText username = dialogUsername.findViewById(R.id.edUsername);
@@ -268,14 +325,13 @@ public class Home extends AppCompatActivity
                         @Override
                         public void onClick(View v) {
                             String name = username.getText().toString();
-                            if (TextUtils.isEmpty(name))
-                            {
+                            if (TextUtils.isEmpty(name)) {
                                 username.setError("Required field");
                                 return;
                             }
 
                             dialogUsername.dismiss();
-                            storeDataInDb(finalUri , file , size , name);
+                            storeDataInDb(finalUri, file, size, name);
                         }
                     });
 
@@ -289,15 +345,14 @@ public class Home extends AppCompatActivity
                     dialogUsername.show();
 
 
-
-                  //  convertToAudio(new File(String.valueOf(finalUri)));  //TODO convert Speech to text
+                    //  convertToAudio(new File(String.valueOf(finalUri)));  //TODO convert Speech to text
                     /**/
                 });
 
                 btnRetry.setOnClickListener(v -> {
                     dialog.dismiss();
                     Intent captureVideoIntent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
-                    startActivityForResult(captureVideoIntent,VIDEO_CAPTURED);
+                    startActivityForResult(captureVideoIntent, VIDEO_CAPTURED);
                 });
 
                 btnCancel.setOnClickListener(v -> dialog.dismiss());
@@ -305,27 +360,25 @@ public class Home extends AppCompatActivity
                 dialog.show();
                 isVideoCapturing = false;
                 editor = preferences.edit();
-                editor.putBoolean("is_video_capturing" , false);
+                editor.putBoolean("is_video_capturing", false);
                 editor.apply();
 
-            }
-            else {
-                if (arrayList.size() > 0)
-                {
+            } else {
+                if (arrayList.size() > 0) {
                     arrayList.clear();
                 }
                 isVideoCapturing = false;
                 editor = preferences.edit();
-                editor.putBoolean("is_video_capturing" , false);
+                editor.putBoolean("is_video_capturing", false);
                 editor.apply();
             }
 
         }
 
     }
-    private void storeDataInDb(Uri finalUri , File file , Float size , String username)
-    {
-        Calendar calendar  = Calendar.getInstance();
+
+    private void storeDataInDb(Uri finalUri, File file, Float size, String username) {
+        Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("MM-dd-yyyy");
         String date = dateFormat.format(calendar.getTime());
         SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
@@ -334,20 +387,23 @@ public class Home extends AppCompatActivity
 
         String size_in_mbs = String.format("%.2f", size);
         if (arrayList.size() > 0) {
-            String city_name =  GetCurrentLocationName(arrayList.get(0).getLatitude() , arrayList.get(0).getLongitude());
+            String city_name = GetCurrentLocationName(arrayList.get(0).getLatitude(), arrayList.get(0).getLongitude());
             boolean i = myDb.insertData(finalUri, file.getName(),
-                    "speech", arrayList.toString(), date ,
-                    size_in_mbs+" MB", time , date ,
-                    city_name , username);
-            if (i)
-            {
+                    "speech", arrayList.toString(), date,
+                    size_in_mbs + " MB", time, date,
+                    city_name, username);
+            SaveDataLocallly(username, city_name, date, time, getVideoTime(finalUri.toString()), size_in_mbs + "MB",
+                    finalUri.toString(), file.getName(),arrayList.toString());
+            if (i) {
                 arrayList.clear();
             }
-        }
-        else
+        } else {
+            deleteUnUsedFile(finalUri.getPath());
             Toast.makeText(Home.this, "No Points to save.", Toast.LENGTH_SHORT).show();
+        }
 
     }
+
     public String getPathFromURI(Uri contentUri) {
         String res = null;
         String[] proj = {MediaStore.Images.Media.DATA};
@@ -359,16 +415,14 @@ public class Home extends AppCompatActivity
         cursor.close();
         return res;
     }
-    private String GetCurrentLocationName(double lat , double lng)
-    {
+
+    private String GetCurrentLocationName(double lat, double lng) {
         Geocoder geocoder = new Geocoder(Home.this);
-        if (geocoder.isPresent())
-        {
-            try
-            {
+        if (geocoder.isPresent()) {
+            try {
                 geocoder = new Geocoder(Home.this, Locale.getDefault());
                 List<Address> addresses = geocoder.getFromLocation(lat, lng, 1);
-                if(addresses!=null&&addresses.size()>0) {
+                if (addresses != null && addresses.size() > 0) {
                     Address address = addresses.get(0);
                     String add = address.getLocality();
                     return add;
@@ -381,6 +435,7 @@ public class Home extends AppCompatActivity
         }
         return null;
     }
+
     @SuppressLint("MissingPermission")
     @Override
     public void onMapReady(MapboxMap mapboxMap) {
@@ -402,8 +457,7 @@ public class Home extends AppCompatActivity
         mapboxMap.getUiSettings().setAllGesturesEnabled(true);
     }
 
-    private void register_Reciever()
-    {
+    private void register_Reciever() {
         if (!receiversRegistered) {
             IntentFilter intentFilter = new IntentFilter();
             intentFilter.addAction(background_location_updates.MY_ACTION);
@@ -411,6 +465,7 @@ public class Home extends AppCompatActivity
             receiversRegistered = true;
         }
     }
+
     void locationEnable() {
         if (PermissionsManager.areLocationPermissionsGranted(this)) {
             intialLocationEngine();
@@ -420,6 +475,7 @@ public class Home extends AppCompatActivity
             permissionsManager.requestLocationPermissions(this);
         }
     }
+
     @SuppressLint("MissingPermission")
     void intialLocationEngine() {
         locationEngine = new LocationEngineProvider(this).obtainBestLocationEngineAvailable();
@@ -441,7 +497,7 @@ public class Home extends AppCompatActivity
         LocationLayerOptions options = LocationLayerOptions.builder(this)
                 .minZoom(15.0)
                 .build();
-        locationLayerPlugin = new LocationLayerPlugin(mapView , map , locationEngine , options);
+        locationLayerPlugin = new LocationLayerPlugin(mapView, map, locationEngine, options);
         locationLayerPlugin.setLocationLayerEnabled(true);
         locationLayerPlugin.setCameraMode(CameraMode.TRACKING_GPS_NORTH);
         locationLayerPlugin.setRenderMode(RenderMode.COMPASS);
@@ -459,8 +515,8 @@ public class Home extends AppCompatActivity
         }
 
     }
-    private void addMarker(LatLng latLng)
-    {
+
+    private void addMarker(LatLng latLng) {
         if (latLng != null) {
             if (currentLocationMarker == null) {
                 currentLocationMarker = map.addMarker(new MarkerOptions()
@@ -472,20 +528,18 @@ public class Home extends AppCompatActivity
         }
     }
 
-    private void addNewMarker(LatLng latLng)
-    {
+    private void addNewMarker(LatLng latLng) {
         if (marker == null) {
             marker = map.addMarker(new MarkerOptions()
                     .position(latLng)
                     .snippet(latLng + "")
                     .title("You are here")
             );
-        }
-        else
-        {
+        } else {
             MarkerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Spherical());
         }
     }
+
     @Override
     public void onConnected() {
 
@@ -498,8 +552,7 @@ public class Home extends AppCompatActivity
             addMarker(new LatLng(originLocation.getLatitude(), originLocation.getLongitude()));
         }
 
-        if (location != null)
-        {
+        if (location != null) {
             if (isVideoCapturing) {
                 if (!isCurrentlocation) {
                     originLocation = location;
@@ -532,6 +585,7 @@ public class Home extends AppCompatActivity
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
+
     @SuppressWarnings("MissingPermission")
     @Override
     public void onStart() {
@@ -558,7 +612,6 @@ public class Home extends AppCompatActivity
     }
 
 
-
     @SuppressLint("MissingPermission")
     @Override
     public void onStop() {
@@ -568,8 +621,7 @@ public class Home extends AppCompatActivity
                 unregisterReceiver(myReceiver);
                 receiversRegistered = false;
             }
-        }catch (Exception e)
-        {
+        } catch (Exception e) {
 
         }
     }
@@ -606,14 +658,14 @@ public class Home extends AppCompatActivity
             // TODO Auto-generated method stub
 
             //Log.d("BroadcastReceiver", "onReceive:");
-           // Bundle bundle = getIntent().getExtras().getBundle("LatLngBundle");
+            // Bundle bundle = getIntent().getExtras().getBundle("LatLngBundle");
 
 
             bundle = arg1.getBundleExtra("LatLngBundle");
 
             if (bundle != null) {
                 arrayList = bundle.getParcelableArrayList("LatLng");
-               // Log.d("BroadcastReceiver", "onReceive: array = " + arrayList);
+                // Log.d("BroadcastReceiver", "onReceive: array = " + arrayList);
             }
         }
 
@@ -633,8 +685,8 @@ public class Home extends AppCompatActivity
     }
 
     String fileName;
-    private void  convertToAudio(File video)
-    {
+
+    private void convertToAudio(File video) {
         fFmpeg = FFmpeg.getInstance(Home.this);
         String path = Environment.getExternalStorageDirectory().getPath();
         ProgressDialog progress = new ProgressDialog(this);
@@ -650,24 +702,24 @@ public class Home extends AppCompatActivity
         //String command  = "ffmpeg -i +"+video+" -vn -acodec copy output-audio.aac";
 
 
-         //fileName = fileName + filePath.substring(i);
+        //fileName = fileName + filePath.substring(i);
         //int i = path.indexOf(".");
-       //fileName = fileName + path.substring(i);
-       // String command = "-y -i " + video + " -an " + folder + "/" + "Hussain_abc.mp4";
+        //fileName = fileName + path.substring(i);
+        // String command = "-y -i " + video + " -an " + folder + "/" + "Hussain_abc.mp4";
         final long currentTimeMillis = System.currentTimeMillis(); // check current time while taking photo
         final String audio_file_path = currentTimeMillis + ".mp3";
-        String command = "-y -i " + video + " -b:a 192K -vn " + folder + "/" +""+audio_file_path;
+        String command = "-y -i " + video + " -b:a 192K -vn " + folder + "/" + "" + audio_file_path;
         String[] cmd = command.split(" ");
 
         String file_path = folder + "/" + audio_file_path;
 
 
         try {
-            fFmpeg.execute(cmd , new ExecuteBinaryResponseHandler(){
+            fFmpeg.execute(cmd, new ExecuteBinaryResponseHandler() {
                 @Override
                 public void onStart() {
                     super.onStart();
-                  //  Log.d("FFMpeg", "onStart: ");
+                    //  Log.d("FFMpeg", "onStart: ");
                     progress.setMessage("Please wait...");
                     progress.show();
                 }
@@ -680,70 +732,6 @@ public class Home extends AppCompatActivity
 
                 @Override
                 public void onFailure(String message) {
-                   // Log.d("FFMpeg",message);
-                    progress.dismiss();
-                }
-
-                @Override
-                public void onSuccess(String message) {
-
-                  //  Log.d("FFMpeg:success", message);
-                    new AudioToSpeechCoverter().execute(file_path);
-                    //convertAudioToSpeech(file_path);
-                    progress.dismiss();
-                   // muestraOpciones();
-                }
-
-                @Override
-                public void onFinish() {
-                }
-            });
-        } catch (FFmpegCommandAlreadyRunningException e) {
-           // Log.e("FFMpeg", "convertToAudio: " , e);
-            e.printStackTrace();
-        }
-
-    }
-
-    private String compressVideo(File video , String res)
-    {
-        fFmpeg = FFmpeg.getInstance(Home.this);
-        String path = Environment.getExternalStorageDirectory().getPath();
-        ProgressDialog progress = new ProgressDialog(this);
-        progress.setIndeterminate(true);
-        File folder = new File(Environment.getExternalStorageDirectory() + "/RouteApp");
-
-        boolean success = true;
-
-        if (!folder.exists()) {
-            success = folder.mkdir();
-        }
-        final long currentTimeMillis = System.currentTimeMillis(); // check current time while taking photo
-        final String audio_file_path = currentTimeMillis + ".mp4";
-
-        String[] command = {"-y", "-i", video.toString(), "-s", res, "-r", "25", "-vcodec", "mpeg4", "-b:v", "150k", "-b:a", "48000", "-ac", "2", "-ar", "22050", folder + "/" +""+audio_file_path};
-        //String command = "-y -i " + video + " -b:a 192K -vn " + folder + "/" +""+audio_file_path;
-       // String[] cmd = command.split(" ");
-
-        String file_path = folder + "/" + audio_file_path;
-        try {
-            fFmpeg.execute(command , new ExecuteBinaryResponseHandler(){
-                @Override
-                public void onStart() {
-                    super.onStart();
-                    //  Log.d("FFMpeg", "onStart: ");
-                    progress.setMessage("Please wait...");
-                    progress.show();
-                }
-
-                @Override
-                public void onProgress(String message) {
-                    progress.setMessage("Please wait while compressing the video...");
-                    //Log.d("FFMpeg", message);
-                }
-
-                @Override
-                public void onFailure(String message) {
                     // Log.d("FFMpeg",message);
                     progress.dismiss();
                 }
@@ -751,14 +739,10 @@ public class Home extends AppCompatActivity
                 @Override
                 public void onSuccess(String message) {
 
-                    Log.d("FFMpeg:success", message);
-                    File fileCompress = new File(file_path);
-                    float size = fileCompress.length();
-                    size = size/1024;
-                    Log.d("FFMpeg:success", size+"");
+                    //  Log.d("FFMpeg:success", message);
+                    new AudioToSpeechCoverter().execute(file_path);
                     //convertAudioToSpeech(file_path);
                     progress.dismiss();
-                    storeDataInDb(Uri.parse(file_path), fileCompress, size , "");
                     // muestraOpciones();
                 }
 
@@ -771,24 +755,35 @@ public class Home extends AppCompatActivity
             e.printStackTrace();
         }
 
+    }
+
+    private String compressVideo(File video) {
+        File folder = new File(Environment.getExternalStorageDirectory() + "/RouteApp");
+        if (!folder.exists()) {
+            folder.mkdir();
+        }
+        final long currentTimeMillis = System.currentTimeMillis(); // check current time while taking photo
+        final String audio_file_path = currentTimeMillis + ".mp4";
+        String file_path = folder + "/" + audio_file_path;
+
         return file_path;
 
     }
 
-    private class AudioToSpeechCoverter extends AsyncTask<String , String , String>
-    {
+    private class AudioToSpeechCoverter extends AsyncTask<String, String, String> {
 
         @Override
         protected String doInBackground(String... strings) {
             convertAudioToSpeech(strings[0]);
-           // AuthImplicit();
+            // AuthImplicit();
             return null;
         }
     }
+
     SpeechSettings settings;
-    private void convertAudioToSpeech(String file_path)
-    {
-        Log.d("HOME", "convertAudioToSpeech: "+file_path);
+
+    private void convertAudioToSpeech(String file_path) {
+        Log.d("HOME", "convertAudioToSpeech: " + file_path);
         InputStream stream = getApplicationContext().getResources().openRawResource(R.raw.credentials);
         try {
             settings =
@@ -815,19 +810,260 @@ public class Home extends AppCompatActivity
                         .setContent(audioBytes)
                         .build();
 
-                RecognizeResponse response = speech.recognize(config,audio);
+                RecognizeResponse response = speech.recognize(config, audio);
                 List<SpeechRecognitionResult> results = response.getResultsList();
-                for (SpeechRecognitionResult result: results)
-                {
+                for (SpeechRecognitionResult result : results) {
                     SpeechRecognitionAlternative alternative = result.getAlternativesList().get(0);
-                    Log.d("HOME", "convertAudioToSpeech: "+alternative.getTranscript());
+                    Log.d("HOME", "convertAudioToSpeech: " + alternative.getTranscript());
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Log.e("convertAudioToSpeech", "convertAudioToSpeech: ",e );
+            Log.e("convertAudioToSpeech", "convertAudioToSpeech: ", e);
         }
 
 
     }
+
+    public void SaveDataLocallly(String user_name, String city_name, String date, String time, String duaration,
+                                 String size, String video_path, String video_name,String cordniate) {
+        int row = myDb.getAllData().size();
+        String Fnamexls = "localDb" + ".xls";
+        File sdCard = Environment.getExternalStorageDirectory();
+        File directory = new File(sdCard.getAbsolutePath() + "/RouteApp");
+        directory.mkdirs();
+        File file = new File(directory, Fnamexls);
+        WorkbookSettings wbSettings = new WorkbookSettings();
+        wbSettings.setLocale(new Locale("en", "EN"));
+        Workbook workbook;
+        try {
+            int a = 1;
+            workbook = Workbook.getWorkbook(file, wbSettings);
+            WritableWorkbook wb = Workbook.createWorkbook(file, workbook);
+            //workbook.createSheet("Report", 0);
+            WritableSheet sheet = wb.getSheet("First Sheet");
+            Label cell_user_name = new Label(0, row, user_name);
+            Label cell_city_name = new Label(1, row, city_name);
+            Label cell_date = new Label(2, row, date);
+            Label cell_time = new Label(3, row, time);
+            Label cell_duration = new Label(4, row, duaration);
+            Label cell_size = new Label(5, row, size);
+            Label cell_path = new Label(6, row, video_path);
+            Label cell_name = new Label(7, row, video_name);
+            Label cell_cordniate = new Label(7, row, cordniate);
+
+            try {
+                sheet.addCell(cell_user_name);
+                sheet.addCell(cell_city_name);
+                sheet.addCell(cell_date);
+                sheet.addCell(cell_time);
+                sheet.addCell(cell_duration);
+                sheet.addCell(cell_size);
+                sheet.addCell(cell_path);
+                sheet.addCell(cell_name);
+                sheet.addCell(cell_cordniate);
+
+            } catch (RowsExceededException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (WriteException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+
+
+            wb.write();
+            wb.close();
+            try {
+                workbook.close();
+            } catch (Exception ex) {
+
+            }
+            //createExcel(excelSheet);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+
+        } catch (BiffException e) {
+
+
+        } catch (WriteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void CreatExcelSheet() {
+        String Fnamexls = "localDb" + ".xls";
+        File sdCard = Environment.getExternalStorageDirectory();
+        File directory = new File(sdCard.getAbsolutePath() + "/RouteApp");
+        if(directory.exists())
+        {
+         Log.d("Directory","Exists");
+            ReadExcel();//to read data
+
+        }
+        else {
+            Log.d("Make", "Directory");
+            directory.mkdirs();
+
+            File file = new File(directory, Fnamexls);
+            WorkbookSettings wbSettings = new WorkbookSettings();
+            wbSettings.setLocale(new Locale("en", "EN"));
+            WritableWorkbook workbook;
+            try {
+                int a = 1;
+                workbook = Workbook.createWorkbook(file, wbSettings);
+                //workbook.createSheet("Report", 0);
+                WritableSheet sheet = workbook.createSheet("First Sheet", 0);
+                Label cell_user_name = new Label(0, 0, "User Name");
+                Label cell_city_name = new Label(1, 0, "City Name");
+                Label cell_date = new Label(2, 0, "Date");
+                Label cell_time = new Label(3, 0, "Time");
+                Label cell_duration = new Label(4, 0, "Duration");
+                Label cell_size = new Label(5, 0, "Video Size");
+                Label cell_uri = new Label(6, 0, "Video Path");
+                Label cell_videname = new Label(7, 0, "Video Name");
+                Label cell_videcordinated = new Label(7, 0, "Video Cordinates");
+                try {
+                    sheet.addCell(cell_user_name);
+                    sheet.addCell(cell_city_name);
+                    sheet.addCell(cell_date);
+                    sheet.addCell(cell_time);
+                    sheet.addCell(cell_duration);
+                    sheet.addCell(cell_size);
+                    sheet.addCell(cell_uri);
+                    sheet.addCell(cell_videname);
+                    sheet.addCell(cell_videcordinated);
+                } catch (RowsExceededException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                } catch (WriteException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+
+
+                workbook.write();
+                try {
+                    workbook.close();
+                } catch (WriteException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                //createExcel(excelSheet);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+
+            }
+        }
+       }
+
+    public void deleteUnUsedFile(String path) {
+        File fdelete = new File(path);
+        try {
+            if (fdelete.exists()) {
+                file.getCanonicalFile().delete();
+                getApplicationContext().deleteFile(file.getName());
+            } else {
+                Log.d("file Deleted :", "IS :" + path);
+            }
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.d("ONDESTROYED","CALLED");
+        try {
+            stopService(new Intent(Home.this, background_location_updates.class));
+
+        }
+        catch (Exception ex)
+        {
+
+        }
+    }
+    private String getVideoTime(String videoUri)
+    {
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        retriever.setDataSource(this, Uri.parse(videoUri));
+        String time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+        long timeInMillisec = Long.parseLong(time );
+        Log.d("Adapter", "getVideoTime: "+timeInMillisec);
+        retriever.release();
+        // SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+        // mTimeText.setText("Time: " + dateFormat.format(timeInMillisec));
+        //timeInMillisec = 5000;
+        String hms = String.format("%02d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(timeInMillisec),
+                TimeUnit.MILLISECONDS.toMinutes(timeInMillisec) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(timeInMillisec)),
+                TimeUnit.MILLISECONDS.toSeconds(timeInMillisec) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(timeInMillisec)));
+
+        return hms;
+    }
+   public void ReadExcel()
+   {
+       String Fnamexls = "localDb" + ".xls";
+       File sdCard = Environment.getExternalStorageDirectory();
+       File directory = new File(sdCard.getAbsolutePath() + "/RouteApp");
+       File file = new File(directory, Fnamexls);
+       Workbook w;
+       try
+       {
+          String uri = null;
+          String filname;
+          String speech;
+          String cordniates = null;
+          String date = null;
+          String size= null;
+          String time = null;
+          String date1;
+          String cityname = null;
+          String username= null;
+           w = Workbook.getWorkbook(file);
+           Sheet sheet = w.getSheet("First Sheet");
+           if(sheet.getRows()>1) {
+               for (int j = 1; j < sheet.getRows(); j++) {
+                   Cell cell = sheet.getCell(0, j);
+
+                   for (int i = 0; i < sheet.getColumns(); i++) {
+                       Cell cel = sheet.getCell(i, j);
+                       Log.d("ELEMENT_CELL", "IS : " + cel.getContents());
+                       if (i == 0) {
+                           username = cel.getContents();
+                       } else if (i == 1) {
+                           cityname = cel.getContents();
+                       } else if (i == 2) {
+                           date = cel.getContents();
+                           date1 = cel.getContents();
+                       } else if (i == 3) {
+                           time = cel.getContents();
+                       } else if (i == 4) {
+
+                       } else if (i == 5) {
+                           size = cel.getContents();
+                       } else if (i == 6) {
+                           uri = cel.getContents();
+                       } else if (i == 7) {
+                           cordniates = cel.getContents();
+                       }
+                   }
+                   boolean i = myDb.insertData(Uri.parse(uri), "file_name",
+                           "speech", cordniates, date,
+                           size.replace("MB","") + " MB", time, date,
+                           cityname, username);
+                   Log.d("ISInserted","IS "+i);
+                   continue;
+               }
+           }
+       }
+       catch (Exception ex)
+       {
+        Log.d("READ_EXCEPTION","IS : "+ex.getMessage());
+       }
+   }
 }
