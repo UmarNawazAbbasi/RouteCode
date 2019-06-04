@@ -50,6 +50,9 @@ public class background_location_updates extends Service {
 
     private static final int LOCATION_INTERVAL = 1000;
     private static final float LOCATION_DISTANCE = 10f;
+    public static  Double Latitude;
+    public static  Double Longitude;
+
     boolean value;
     private class LocationListener implements android.location.LocationListener{
         private static final String TAG = "Service_For_Location";
@@ -75,6 +78,8 @@ public class background_location_updates extends Service {
                 sendBroadcast(intent);
                 //Log.e(TAG, "onLocationChanged: " + location.getLatitude() + "," + location.getLongitude());
                 mLastLocation.set(location);
+                Latitude=location.getLatitude();
+                Longitude=location.getLongitude();
                 //Log.d(TAG, "onLocationChanged:array in s "+list.size());
             }
             else

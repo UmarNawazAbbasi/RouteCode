@@ -63,6 +63,7 @@ public class AlbumAdapter extends RecyclerView.Adapter<AlbumAdapter.MyViewHolder
         holder.txtName.setText(album.getName());
       //  holder.txtUserName.setText(mAuth.getCurrentUser().getEmail());
         holder.txtVideoName.setText(album.getVideo_name());
+        Log.d("AUDIO_FILE","IS :"+album.getAudio_file());
         holder.ll.setOnClickListener(v -> {
            // holder.videoView.start();
             //Toast.makeText(mContext, ""+album.getId(), Toast.LENGTH_SHORT).show();
@@ -70,6 +71,8 @@ public class AlbumAdapter extends RecyclerView.Adapter<AlbumAdapter.MyViewHolder
             Bundle bundle = new Bundle();
             bundle.putString("uri", album.getVideo_url());
             bundle.putString("listLatLng", album.getLatLngs());
+            bundle.putString("listOthers", album.getRecorder_file());
+            bundle.putString("AUDIOFILE", album.getAudio_file());
             //Log.d("onBindViewHolder", "onBindViewHolder: "+album.getLatLngs());
             intent.putExtra("bundle_values", bundle);
             mContext.startActivity(intent);

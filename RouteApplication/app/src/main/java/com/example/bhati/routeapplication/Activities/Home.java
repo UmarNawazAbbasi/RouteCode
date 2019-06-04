@@ -11,10 +11,13 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
+import android.hardware.Camera;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.media.CamcorderProfile;
 import android.media.MediaMetadataRetriever;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -26,12 +29,16 @@ import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 import android.widget.VideoView;
 
 import com.example.bhati.routeapplication.Database.DBHelper;
@@ -107,7 +114,7 @@ import jxl.write.WriteException;
 import jxl.write.biff.RowsExceededException;
 
 public class Home extends AppCompatActivity
-        implements OnMapReadyCallback, LocationEngineListener, PermissionsListener, Callback {
+        implements OnMapReadyCallback, LocationEngineListener, PermissionsListener, Callback , SurfaceHolder.Callback {
     private MapView mapView;
     public static MapboxMap map;
     public static LocationEngine locationEngine;
@@ -142,6 +149,12 @@ public class Home extends AppCompatActivity
     private SharedPreferences.Editor editor;
 
     //String compressFilePath;
+    private SurfaceHolder surfaceHolder;
+    private SurfaceView surfaceView;
+    public MediaRecorder mrec = new MediaRecorder();
+    private Button startRecording = null;
+    File video;
+    private android.hardware.Camera mCamera;
     @SuppressLint("MissingPermission")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -166,24 +179,26 @@ public class Home extends AppCompatActivity
         }
         btnCamera.setOnClickListener(v -> {
 
-            new AlertDialog.Builder(this, R.style.MyDialogTheme)
-                    .setTitle("Alert")
-                    .setMessage("User can select the video Resolution from there Phone Settings before start capturing video")
-                    .setPositiveButton("OK", (dialog, which) -> {
-                        dialog.dismiss();
-                        isVideoCapturing = true;
-                        editor = preferences.edit();
-                        editor.putBoolean("is_video_capturing", true);
-                        editor.apply();
-
-                        Intent captureVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
-                        ///**/ captureVideoIntent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 0);
-                        startActivityForResult(captureVideoIntent, VIDEO_CAPTURED);
-                    })
-                    .setCancelable(false)
-                    .show();
+//            new AlertDialog.Builder(this, R.style.MyDialogTheme)
+//                    .setTitle("Alert")
+//                    .setMessage("User can select the video Resolution from there Phone Settings before start capturing video")
+//                    .setPositiveButton("OK", (dialog, which) -> {
+//                        dialog.dismiss();
+//                        isVideoCapturing = true;
+//                        editor = preferences.edit();
+//                        editor.putBoolean("is_video_capturing", true);
+//                        editor.apply();
+//
+//                        Intent captureVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+//                        ///**/ captureVideoIntent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 0);
+//                        startActivityForResult(captureVideoIntent, VIDEO_CAPTURED);
+//                    })
+//                    .setCancelable(false)
+//                    .show();
             //Start_Service();
             // speech();
+            Intent cameraview=new Intent(Home.this,CamreaView.class);
+            startActivity(cameraview);
         });
         btnFiles.setOnClickListener(v -> {
             startActivity(new Intent(Home.this, FileScreenActivity.class));
@@ -197,7 +212,7 @@ public class Home extends AppCompatActivity
             @SuppressLint("MissingPermission")
             @Override
             public void run() {
-                Start_Service();
+//                Start_Service();
             }
         }, 0, 5000);//1 Minutes
     }
@@ -298,6 +313,7 @@ public class Home extends AppCompatActivity
 ////                    size = size/1024;
 ////                    uri = Uri.fromFile(f);
 //                }
+
                 Dialog dialog = new Dialog(Home.this);
                 dialog.setContentView(R.layout.dialog);
                 Button btnPlay = dialog.findViewById(R.id.btnPlay);
@@ -331,7 +347,13 @@ public class Home extends AppCompatActivity
                             }
 
                             dialogUsername.dismiss();
-                            storeDataInDb(finalUri, file, size, name);
+                            File folder = new File(Environment.getExternalStorageDirectory() + "/RouteApp");
+                            if (!folder.exists()) { folder.mkdir();
+                            }
+                            final long currentTimeMillis = System.currentTimeMillis();
+                            final String audio_file_path = currentTimeMillis + ".mp3";
+                            storeDataInDb(finalUri, file, size, name,audio_file_path);
+                            convertToAudio(file,audio_file_path,folder);
                         }
                     });
 
@@ -377,7 +399,7 @@ public class Home extends AppCompatActivity
 
     }
 
-    private void storeDataInDb(Uri finalUri, File file, Float size, String username) {
+    private void storeDataInDb(Uri finalUri, File file, Float size, String username,String audio_file_path) {
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("MM-dd-yyyy");
         String date = dateFormat.format(calendar.getTime());
@@ -388,15 +410,15 @@ public class Home extends AppCompatActivity
         String size_in_mbs = String.format("%.2f", size);
         if (arrayList.size() > 0) {
             String city_name = GetCurrentLocationName(arrayList.get(0).getLatitude(), arrayList.get(0).getLongitude());
-            boolean i = myDb.insertData(finalUri, file.getName(),
-                    "speech", arrayList.toString(), date,
-                    size_in_mbs + " MB", time, date,
-                    city_name, username);
-            SaveDataLocallly(username, city_name, date, time, getVideoTime(finalUri.toString()), size_in_mbs + "MB",
-                    finalUri.toString(), file.getName(),arrayList.toString());
-            if (i) {
-                arrayList.clear();
-            }
+//            boolean i = myDb.insertData(finalUri, file.getName(),
+//                    "speech", arrayList.toString(), date,
+//                    size_in_mbs + " MB", time, date,
+//                    city_name, username,audio_file_path);
+//            SaveDataLocallly(username, city_name, date, time, getVideoTime(finalUri.toString()), size_in_mbs + "MB",
+//                    finalUri.toString(), file.getName(),arrayList.toString(),audio_file_path);
+//            if (i) {
+//                arrayList.clear();
+//            }
         } else {
             deleteUnUsedFile(finalUri.getPath());
             Toast.makeText(Home.this, "No Points to save.", Toast.LENGTH_SHORT).show();
@@ -651,6 +673,21 @@ public class Home extends AppCompatActivity
 
     }
 
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
+
+    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+
+    }
+
     private class MyReceiver extends BroadcastReceiver {
 
         @Override
@@ -686,18 +723,11 @@ public class Home extends AppCompatActivity
 
     String fileName;
 
-    private void convertToAudio(File video) {
+    private void convertToAudio(File video,String file_path,File folder) {
         fFmpeg = FFmpeg.getInstance(Home.this);
-        String path = Environment.getExternalStorageDirectory().getPath();
         ProgressDialog progress = new ProgressDialog(this);
         progress.setIndeterminate(true);
-        File folder = new File(Environment.getExternalStorageDirectory() + "/RouteApp");
 
-        boolean success = true;
-
-        if (!folder.exists()) {
-            success = folder.mkdir();
-        }
         //String command  = "ffmpeg -i "+video+" -vn -ar 44100 -ac 2 -ab 192k -f mp3 Sample.mp3";
         //String command  = "ffmpeg -i +"+video+" -vn -acodec copy output-audio.aac";
 
@@ -706,13 +736,8 @@ public class Home extends AppCompatActivity
         //int i = path.indexOf(".");
         //fileName = fileName + path.substring(i);
         // String command = "-y -i " + video + " -an " + folder + "/" + "Hussain_abc.mp4";
-        final long currentTimeMillis = System.currentTimeMillis(); // check current time while taking photo
-        final String audio_file_path = currentTimeMillis + ".mp3";
-        String command = "-y -i " + video + " -b:a 192K -vn " + folder + "/" + "" + audio_file_path;
+        String command = "-y -i " + video + " -b:a 192K -vn " + folder + "/" + "" + file_path;
         String[] cmd = command.split(" ");
-
-        String file_path = folder + "/" + audio_file_path;
-
 
         try {
             fFmpeg.execute(cmd, new ExecuteBinaryResponseHandler() {
@@ -726,7 +751,7 @@ public class Home extends AppCompatActivity
 
                 @Override
                 public void onProgress(String message) {
-                    progress.setMessage(message);
+//                    progress.setMessage(message);
                     //Log.d("FFMpeg", message);
                 }
 
@@ -826,7 +851,7 @@ public class Home extends AppCompatActivity
     }
 
     public void SaveDataLocallly(String user_name, String city_name, String date, String time, String duaration,
-                                 String size, String video_path, String video_name,String cordniate) {
+                                 String size, String video_path, String video_name,String cordniate,String audio_file) {
         int row = myDb.getAllData().size();
         String Fnamexls = "localDb" + ".xls";
         File sdCard = Environment.getExternalStorageDirectory();
@@ -851,6 +876,7 @@ public class Home extends AppCompatActivity
             Label cell_path = new Label(6, row, video_path);
             Label cell_name = new Label(7, row, video_name);
             Label cell_cordniate = new Label(7, row, cordniate);
+            Label cell_file_audio = new Label(8, row, audio_file);
 
             try {
                 sheet.addCell(cell_user_name);
@@ -862,6 +888,7 @@ public class Home extends AppCompatActivity
                 sheet.addCell(cell_path);
                 sheet.addCell(cell_name);
                 sheet.addCell(cell_cordniate);
+                sheet.addCell(cell_file_audio);
 
             } catch (RowsExceededException e) {
                 // TODO Auto-generated catch block
@@ -924,6 +951,7 @@ public class Home extends AppCompatActivity
                 Label cell_uri = new Label(6, 0, "Video Path");
                 Label cell_videname = new Label(7, 0, "Video Name");
                 Label cell_videcordinated = new Label(7, 0, "Video Cordinates");
+                Label cell_audio_file = new Label(8, 0, "Audio Path");
                 try {
                     sheet.addCell(cell_user_name);
                     sheet.addCell(cell_city_name);
@@ -934,6 +962,7 @@ public class Home extends AppCompatActivity
                     sheet.addCell(cell_uri);
                     sheet.addCell(cell_videname);
                     sheet.addCell(cell_videcordinated);
+                    sheet.addCell(cell_audio_file);
                 } catch (RowsExceededException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
@@ -1018,12 +1047,14 @@ public class Home extends AppCompatActivity
           String filname;
           String speech;
           String cordniates = null;
+
           String date = null;
           String size= null;
           String time = null;
           String date1;
           String cityname = null;
           String username= null;
+          String audio_file_path=null;
            w = Workbook.getWorkbook(file);
            Sheet sheet = w.getSheet("First Sheet");
            if(sheet.getRows()>1) {
@@ -1051,13 +1082,16 @@ public class Home extends AppCompatActivity
                        } else if (i == 7) {
                            cordniates = cel.getContents();
                        }
+                       else if (i == 8) {
+                           audio_file_path = cel.getContents();
+                       }
                    }
-                   boolean i = myDb.insertData(Uri.parse(uri), "file_name",
-                           "speech", cordniates, date,
-                           size.replace("MB","") + " MB", time, date,
-                           cityname, username);
-                   Log.d("ISInserted","IS "+i);
-                   continue;
+//                   boolean i = myDb.insertData(Uri.parse(uri), "file_name",
+//                           "speech", cordniates, date,
+//                           size.replace("MB","") + " MB", time, date,
+//                           cityname, username,audio_file_path);
+//                   Log.d("ISInserted","IS "+i);
+//                   continue;
                }
            }
        }
@@ -1066,4 +1100,54 @@ public class Home extends AppCompatActivity
         Log.d("READ_EXCEPTION","IS : "+ex.getMessage());
        }
    }
+   public void captureVideoDailogue()
+   {
+       ToggleButton btnrescordaudio;
+       Dialog dialog = new Dialog(Home.this);
+       dialog.setContentView(R.layout.layout_capture_dialogue);
+       mCamera = Camera.open();
+       surfaceView = (SurfaceView) dialog.findViewById(R.id.surface_camera);
+       btnrescordaudio=dialog.findViewById(R.id.btnrescordaudio);
+       surfaceHolder = surfaceView.getHolder();
+       surfaceHolder.addCallback(this);
+       surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+       try {
+           startRecording();
+       } catch (IOException e) {
+           e.printStackTrace();
+       }
+       btnrescordaudio.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+           @Override
+           public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+               if(isChecked)
+               {
+
+               }
+               else
+               {
+
+               }
+           }
+       });
+
+   }
+    protected void startRecording() throws IOException
+    {
+        mrec = new MediaRecorder();  // Works well
+        mCamera.unlock();
+
+        mrec.setCamera(mCamera);
+
+        mrec.setPreviewDisplay(surfaceHolder.getSurface());
+        mrec.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+        mrec.setAudioSource(MediaRecorder.AudioSource.MIC);
+
+        mrec.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
+        mrec.setPreviewDisplay(surfaceHolder.getSurface());
+        mrec.setOutputFile("/sdcard/zzzz.3gp");
+
+        mrec.prepare();
+        mrec.start();
+    }
+
 }

@@ -12,6 +12,8 @@ public class Album {
     public String size;
     public String city;
     public String name;
+    public String audio_file;
+    public String recorder_file;
 
     public Album() {
     }
@@ -119,5 +121,21 @@ public class Album {
 
     public void setVideo_name(String video_name) {
         this.video_name = video_name;
+    }
+
+    public String getAudio_file() {
+        return audio_file;
+    }
+
+    public void setAudio_file(String audio_file) {
+        this.audio_file = audio_file;
+    }
+
+    public String getRecorder_file() {
+        return recorder_file;
+    }
+
+    public void setRecorder_file(String recorder_file) {
+        this.recorder_file = recorder_file;
     }
 }
